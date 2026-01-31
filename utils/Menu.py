@@ -1,6 +1,7 @@
 import pygame
 import sys
 from utils.Button import Button
+import subprocess
 
 MENU_MAIN = "main"
 MENU_GAME_SELECT = "game_select"
@@ -77,30 +78,33 @@ class Menu:
         self._create_main_buttons()
 
     def game_rps(self):
-        print("Uruchamianie RPS...")
+        print("Uruchamianie RPS jako osobny proces...")
         
-        # 1. ZWOLNIJ KAMERĘ w Pygame
+        # 1. ZWOLNIJ KAMERĘ w Menu (żeby gra mogła ją przejąć)
         self.finger_tracker.release()
         
-        # Minimalizuj okno Pygame (opcjonalne, czasem pomaga)
-        pygame.display.iconify()
+        # 2. Ukryj okno Menu lub zminimalizuj
+        # pygame.display.iconify() # Opcjonalne
         
-        # Import wewnątrz funkcji, żeby uniknąć cyklicznych zależności
-        from utils.RPSGame import RPSGame
-        
-        # Przekazujemy indeks kamery, a nie obiekt capture
+        # 3. Uruchom grę jako OSOBNY PROCES
+        # Przekazujemy ścieżkę do interpretera python, ścieżkę do pliku gry i indeks kamery
         try:
-            game = RPSGame(cam_index=self.finger_tracker.cam_index)
-            game.run()
+            # sys.executable to ścieżka do pythona, którego właśnie używasz (np. w venv)
+            subprocess.run([sys.executable, "utils/RPSGame.py", str(self.finger_tracker.cam_index)])
         except Exception as e:
-            print(f"Błąd gry RPS: {e}")
+            print(f"Nie udało się uruchomić gry: {e}")
         
-        # Po zamknięciu Ursina (jeśli w ogóle wróci - Ursina często zamyka cały proces)
-        # Przywracamy okno Pygame
-        pygame.display.set_mode((1280, 720))
+        # --- Tutaj kod wraca dopiero, gdy zamkniesz grę RPS ---
+
+        # 4. Przywróć okno Pygame (Ursina mogła zmienić rozdzielczość monitora)
+        self.screen = pygame.display.set_mode((1280, 720))
         
-        # 2. WŁĄCZ KAMERĘ PONOWNIE dla Menu
+        # 5. WŁĄCZ KAMERĘ PONOWNIE dla Menu
         self.finger_tracker.reinit()
+        
+        # 6. Upewnij się, że jesteśmy w menu wyboru gier
+        self.state = MENU_GAME_SELECT
+        self._create_game_select_buttons()
             
     def game_kinect(self):
         print("Start gry: Kinect – sterowanie ciałem")
