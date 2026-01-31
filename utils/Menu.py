@@ -9,10 +9,15 @@ MENU_SETTINGS = "settings"
 class Menu:
     def __init__(self, screen, finger_tracker):
         self.screen = screen
-        self.finger_tracker = finger_tracker # Przechowujemy referencję do trackera
-        self.font = pygame.font.SysFont(None, 48)
+        self.finger_tracker = finger_tracker
+        # Używamy domyślnej czcionki systemowej, ale pogrubionej, żeby była bardziej "puchata"
+        try:
+            self.font = pygame.font.SysFont("arial rounded mt bold", 48)
+        except:
+             self.font = pygame.font.SysFont(None, 48, bold=True)
+             
         
-        # Ładowanie tła (uproszczone dla bezpieczeństwa, upewnij się że pliki istnieją)
+        # Ładowanie tła - zmieniono kolory fallback (awaryjne) na pastelowe
         try:
             self.bg_main = pygame.transform.scale(
                 pygame.image.load("./assets/bg_main.png").convert(), 
@@ -20,9 +25,9 @@ class Menu:
             self.bg_game_select = self.bg_main
             self.bg_settings = self.bg_main
         except:
-            # Fallback jeśli brak grafiki
+            # Fallback: Pastelowe kremowe tło
             self.bg_main = pygame.Surface((screen.get_width(), screen.get_height()))
-            self.bg_main.fill((50, 50, 50))
+            self.bg_main.fill((255, 253, 208)) # Cream color
             self.bg_game_select = self.bg_main
             self.bg_settings = self.bg_main
 
@@ -118,43 +123,83 @@ class Menu:
         sys.exit()
 
     def update(self, finger_pos, pinch):
-        if not pinch:
-            self.lock_interaction = False
+            if not pinch:
+                self.lock_interaction = False
+            if not self.lock_interaction:
+                for button in self.buttons[:]:
+                    old_state = self.state 
+                    button.update(finger_pos, pinch)
+                    if self.state != old_state:
+                        self.lock_interaction = True
+                        break
 
-        if not self.lock_interaction:
-            # Kopia listy, aby uniknąć błędów przy zmianie stanu
-            for button in self.buttons[:]:
-                old_state = self.state 
-                button.update(finger_pos, pinch)
-                if self.state != old_state:
-                    self.lock_interaction = True
-                    break
-    
+    # --- NOWA UROCZA METODA DRAW ---
     def draw(self, finger_pos, pinch):
+        # 1. Rysowanie tła
         if self.state == MENU_MAIN:
             self.screen.blit(self.bg_main, (0, 0))
         elif self.state == MENU_GAME_SELECT:
             self.screen.blit(self.bg_game_select, (0, 0))
         elif self.state == MENU_SETTINGS:
             self.screen.blit(self.bg_settings, (0, 0))
+            # Uroczy pasek głośności (zaokrąglony)
+            vol_width = 200
+            # Tło paska (jasnoszare)
+            pygame.draw.rect(self.screen, (220, 220, 220), (50, 100, vol_width, 15), border_radius=8) 
+            # Wypełnienie (różowe)
+            if self.volume > 0:
+                pygame.draw.rect(self.screen, (255, 105, 180), (50, 100, int(vol_width * self.volume), 15), border_radius=8)
     
+        # 2. Rysowanie przycisków
         for button in self.buttons:
             button.draw(self.screen)
-        
-        # Wyświetlanie głośności w ustawieniach
+            
+        # Tekst w ustawieniach (z obrysem, jak przyciski)
         if self.state == MENU_SETTINGS:
-            volume_text = self.font.render(f"Głośność: {int(self.volume*100)}%", True, (255, 255, 255))
-            self.screen.blit(volume_text, (50, 50))
+            # Używamy metody pomocniczej z pierwszego przycisku (trochę hack, ale działa)
+            if self.buttons:
+                 self.buttons[0].draw_text_with_outline(self.screen, f"Głośność: {int(self.volume*100)}%", self.font, (255,255,255), (255, 105, 180), pygame.Rect(50, 40, 200, 50))
 
-        cursor_pos = None
+        # 3. Rysowanie KURSORA (Urocza bąbelkowa kropka)
+        cursor_pos = finger_pos
+        is_snapped = False
+        
         if finger_pos:
-            # Prosta logika przyciągania kursora do przycisku (opcjonalne)
             for button in self.buttons:
-                if button.rect.collidepoint(finger_pos):
+                if button.original_rect.collidepoint(finger_pos):
+                    is_snapped = True
                     break
-            cursor_pos = finger_pos
-
+        
         if cursor_pos:
-            pygame.draw.circle(self.screen, (0, 255, 0), cursor_pos, 10)
+            cx, cy = cursor_pos
+            
+            # Paleta kolorów kursora
+            color_normal = (135, 206, 250)  # Pastelowy błękit (SkyBlue)
+            color_snapped = (152, 251, 152) # Pastelowa mięta (PaleGreen)
+            color_pinch = (255, 182, 193)   # Pastelowy róż (LightPink)
+            
+            # Wybór koloru i rozmiaru
             if pinch:
-                pygame.draw.circle(self.screen, (255, 0, 0), cursor_pos, 14, 3)
+                color = color_pinch
+                radius = 12 # Mniejszy przy kliku (efekt "ściśnięcia")
+                border_width = 3
+            elif is_snapped:
+                color = color_snapped
+                radius = 18 # Większy przy najechaniu
+                border_width = 5
+            else:
+                color = color_normal
+                radius = 15 # Normalny
+                border_width = 4
+
+            # Rysowanie:
+            # 1. Zewnętrzna, półprzezroczysta otoczka (dla miękkości)
+            s = pygame.Surface((radius*2+10, radius*2+10), pygame.SRCALPHA)
+            pygame.draw.circle(s, (*color, 100), (radius+5, radius+5), radius+4)
+            self.screen.blit(s, (cx - (radius+5), cy - (radius+5)))
+
+            # 2. Gruby, biały obrys
+            pygame.draw.circle(self.screen, (255, 255, 255), (cx, cy), radius, border_width)
+            
+            # 3. Kolorowy środek
+            pygame.draw.circle(self.screen, color, (cx, cy), radius - border_width)
