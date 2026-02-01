@@ -1,7 +1,7 @@
 import pygame
 import sys
-from utils.Button import Button
 import subprocess
+from utils.Button import Button
 
 MENU_MAIN = "main"
 MENU_GAME_SELECT = "game_select"
@@ -14,8 +14,11 @@ class Menu:
         # Używamy domyślnej czcionki systemowej, ale pogrubionej, żeby była bardziej "puchata"
         try:
             self.font = pygame.font.SysFont("arial rounded mt bold", 48)
+            # Mniejsza czcionka dla dłuższych nazw
+            self.font_small = pygame.font.SysFont("arial rounded mt bold", 40)
         except:
              self.font = pygame.font.SysFont(None, 48, bold=True)
+             self.font_small = pygame.font.SysFont(None, 40, bold=True)
              
         
         # Ładowanie tła - zmieniono kolory fallback (awaryjne) na pastelowe
@@ -53,10 +56,12 @@ class Menu:
         center_x = self.screen.get_width() // 2
         center_y = self.screen.get_height() // 2
 
+        # Układ dla 3 gier + przycisk powrotu
         self.buttons = [
-            Button((center_x - 500, center_y - 60, 400, 60), "Papier Kamień Nożyce", self.font, self.game_rps),
-            Button((center_x - 500, center_y + 40, 400, 60), "Po prostu tańcz®", self.font, self.game_kinect),
-            Button((center_x - 450, center_y + 140, 300, 50), "Powrót", self.font, self.back_to_menu)
+            Button((center_x - 200, center_y - 140, 400, 60), "Papier Kamień Nożyce", self.font_small, self.game_rps),
+            Button((center_x - 200, center_y - 60, 400, 60), "Flappy Fist (Skok)", self.font_small, self.game_bird),
+            Button((center_x - 200, center_y + 20, 400, 60), "Po prostu tańcz®", self.font_small, self.game_kinect),
+            Button((center_x - 150, center_y + 120, 300, 50), "Powrót", self.font, self.back_to_menu)
         ]
 
     def _create_settings_buttons(self):
@@ -77,77 +82,81 @@ class Menu:
         self.state = MENU_MAIN
         self._create_main_buttons()
 
+    # --- GRA 1: Papier Kamień Nożyce (Ursina - osobny proces) ---
     def game_rps(self):
         print("Uruchamianie RPS jako osobny proces...")
-        
-        # 1. ZWOLNIJ KAMERĘ w Menu (żeby gra mogła ją przejąć)
         self.finger_tracker.release()
-        
-        # 2. Ukryj okno Menu lub zminimalizuj
-        # pygame.display.iconify() # Opcjonalne
-        
-        # 3. Uruchom grę jako OSOBNY PROCES
-        # Przekazujemy ścieżkę do interpretera python, ścieżkę do pliku gry i indeks kamery
         try:
-            # sys.executable to ścieżka do pythona, którego właśnie używasz (np. w venv)
             subprocess.run([sys.executable, "utils/RPSGame.py", str(self.finger_tracker.cam_index)])
         except Exception as e:
-            print(f"Nie udało się uruchomić gry: {e}")
+            print(f"Nie udało się uruchomić gry RPS: {e}")
         
-        # --- Tutaj kod wraca dopiero, gdy zamkniesz grę RPS ---
-
-        # 4. Przywróć okno Pygame (Ursina mogła zmienić rozdzielczość monitora)
         self.screen = pygame.display.set_mode((1280, 720))
-        
-        # 5. WŁĄCZ KAMERĘ PONOWNIE dla Menu
         self.finger_tracker.reinit()
-        
-        # 6. Upewnij się, że jesteśmy w menu wyboru gier
         self.state = MENU_GAME_SELECT
         self._create_game_select_buttons()
-            
+
+    # --- GRA 2: Flappy Fist (Pygame - osobny proces) ---
+    def game_bird(self):
+        print("Uruchamianie Flappy Fist jako osobny proces...")
+        self.finger_tracker.release()
+        try:
+            subprocess.run([sys.executable, "utils/BirdGame.py", str(self.finger_tracker.cam_index)])
+        except Exception as e:
+            print(f"Nie udało się uruchomić gry Flappy Fist: {e}")
+        
+        self.screen = pygame.display.set_mode((1280, 720))
+        self.finger_tracker.reinit()
+        self.finger_tracker.pinch = False # Reset flagi
+        self.state = MENU_GAME_SELECT
+        self._create_game_select_buttons()
+
+    # --- GRA 3: Kinect / Po prostu tańcz (Zintegrowana) ---
     def game_kinect(self):
         print("Uruchamianie Kinect Game w oknie głównym...")
         
-        # 1. Zwalniamy tracker menu (bo KinectGame otworzy kamerę sam)
+        # 1. Zwalniamy tracker menu
         self.finger_tracker.release()
         
-        # Importujemy nową klasę
-        from utils.KinectGame import KinectGame
-        
-        # Zapisujemy obecną rozdzielczość, żeby wiedzieć do czego wrócić
+        # Importujemy klasę gry (upewnij się, że plik utils/KinectGame.py istnieje)
+        try:
+            from utils.KinectGame import KinectGame
+        except ImportError:
+            print("Błąd: Brak pliku utils/KinectGame.py")
+            self.finger_tracker.reinit()
+            return
+
         old_w, old_h = self.screen.get_width(), self.screen.get_height()
-        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        
+        # Opcjonalnie: fullscreen dla tańca
+        # self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 
-
+        # Muzyka gry
         try:
-            pygame.mixer.music.fadeout(1000) # Płynne wyciszenie muzyki z menu (1 sekunda)
+            pygame.mixer.music.fadeout(1000)
             pygame.mixer.music.load("./music/kinect_music.mp3")
-            pygame.mixer.music.play(-1) # Odtwarzanie w pętli
+            pygame.mixer.music.play(-1)
         except Exception as e:
-            print(f"Nie udało się załadować muzyki gry: {e}")
+            print(f"Brak muzyki do tańca (opcjonalne): {e}")
 
         try:
-            # Przekazujemy 'self.screen', aby gra rysowała w tym samym oknie
             game = KinectGame(self.screen, cam_index=self.finger_tracker.cam_index)
             game.run()
         except Exception as e:
-            print(f"Błąd uruchamiania gry Kinect: {e}")
+            print(f"Błąd w grze Kinect: {e}")
         
-
+        # Powrót muzyki menu
         try:
-            pygame.mixer.music.fadeout(1000) # Wyciszamy muzykę z gry Kinect
-            pygame.mixer.music.load("./music/music.mp3") # Ładujemy standardową muzykę menu
+            pygame.mixer.music.fadeout(1000)
+            pygame.mixer.music.load("./music/music.mp3")
             pygame.mixer.music.play(-1)
         except Exception as e:
-             print(f"Błąd przy przywracaniu muzyki menu: {e}")
+             pass
 
-        # Po wyjściu z pętli gry przywracamy stare wymiary (1280x720)
         self.screen = pygame.display.set_mode((old_w, old_h))
-
-        # 2. Po zakończeniu gry, przywracamy kamerę dla menu
         self.finger_tracker.reinit()
-
+        self.state = MENU_GAME_SELECT
+        self._create_game_select_buttons()
 
     def settings(self):
         self.state = MENU_SETTINGS
@@ -177,7 +186,6 @@ class Menu:
                         self.lock_interaction = True
                         break
 
-    # --- NOWA UROCZA METODA DRAW ---
     def draw(self, finger_pos, pinch):
         # 1. Rysowanie tła
         if self.state == MENU_MAIN:
@@ -186,11 +194,9 @@ class Menu:
             self.screen.blit(self.bg_game_select, (0, 0))
         elif self.state == MENU_SETTINGS:
             self.screen.blit(self.bg_settings, (0, 0))
-            # Uroczy pasek głośności (zaokrąglony)
+            
             vol_width = 200
-            # Tło paska (jasnoszare)
             pygame.draw.rect(self.screen, (220, 220, 220), (50, 100, vol_width, 15), border_radius=8) 
-            # Wypełnienie (różowe)
             if self.volume > 0:
                 pygame.draw.rect(self.screen, (255, 105, 180), (50, 100, int(vol_width * self.volume), 15), border_radius=8)
     
@@ -198,13 +204,12 @@ class Menu:
         for button in self.buttons:
             button.draw(self.screen)
             
-        # Tekst w ustawieniach (z obrysem, jak przyciski)
+        # Tekst w ustawieniach
         if self.state == MENU_SETTINGS:
-            # Używamy metody pomocniczej z pierwszego przycisku (trochę hack, ale działa)
             if self.buttons:
                  self.buttons[0].draw_text_with_outline(self.screen, f"Głośność: {int(self.volume*100)}%", self.font, (255,255,255), (255, 105, 180), pygame.Rect(50, 40, 200, 50))
 
-        # 3. Rysowanie KURSORA (Urocza bąbelkowa kropka)
+        # 3. Rysowanie KURSORA
         cursor_pos = finger_pos
         is_snapped = False
         
@@ -217,33 +222,26 @@ class Menu:
         if cursor_pos:
             cx, cy = cursor_pos
             
-            # Paleta kolorów kursora
-            color_normal = (135, 206, 250)  # Pastelowy błękit (SkyBlue)
-            color_snapped = (152, 251, 152) # Pastelowa mięta (PaleGreen)
-            color_pinch = (255, 182, 193)   # Pastelowy róż (LightPink)
+            color_normal = (135, 206, 250) 
+            color_snapped = (152, 251, 152)
+            color_pinch = (255, 182, 193)  
             
-            # Wybór koloru i rozmiaru
             if pinch:
                 color = color_pinch
-                radius = 12 # Mniejszy przy kliku (efekt "ściśnięcia")
+                radius = 12 
                 border_width = 3
             elif is_snapped:
                 color = color_snapped
-                radius = 18 # Większy przy najechaniu
+                radius = 18 
                 border_width = 5
             else:
                 color = color_normal
-                radius = 15 # Normalny
+                radius = 15 
                 border_width = 4
 
-            # Rysowanie:
-            # 1. Zewnętrzna, półprzezroczysta otoczka (dla miękkości)
             s = pygame.Surface((radius*2+10, radius*2+10), pygame.SRCALPHA)
             pygame.draw.circle(s, (*color, 100), (radius+5, radius+5), radius+4)
             self.screen.blit(s, (cx - (radius+5), cy - (radius+5)))
 
-            # 2. Gruby, biały obrys
             pygame.draw.circle(self.screen, (255, 255, 255), (cx, cy), radius, border_width)
-            
-            # 3. Kolorowy środek
             pygame.draw.circle(self.screen, color, (cx, cy), radius - border_width)
