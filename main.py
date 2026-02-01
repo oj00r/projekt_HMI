@@ -41,7 +41,7 @@ while running:
     # Aktualizacja menu
     menu.update(finger_pos, pinch)
     
-    # Rysowanie
+    # Rysowanie 
     menu.draw(finger_pos, pinch) 
 
     pygame.display.flip()

@@ -1,5 +1,3 @@
-# utils/poses.py
-
 RockPose = {
     "nadgarstek": (228.051, 2.718, -1.647),
     "Przed_kciuk": (-36.854, -10.847, -43.296),
