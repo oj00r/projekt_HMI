@@ -21,7 +21,7 @@ clock = pygame.time.Clock()
 running = True
 
 # Inicjalizacja trackera (upewnij się co do indeksu kamery: 0, 1 lub 2)
-finger = FingerTracker(cam_index=2) 
+finger = FingerTracker(cam_index=0) 
 
 # PRZEKAZUJEMY finger DO MENU
 menu = Menu(screen, finger)

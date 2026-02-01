@@ -272,18 +272,6 @@ class RPSGame:
         self.app.run()
 
 if __name__ == "__main__":
-    import sys
-    
-    # Domyślna kamera
-    camera_idx = 2
-    
-    # Sprawdzamy czy Menu przekazało nam numer kamery w argumencie
-    if len(sys.argv) > 1:
-        try:
-            camera_idx = int(sys.argv[1])
-        except ValueError:
-            pass
-            
-    # Uruchamiamy grę
-    game = RPSGame(cam_index=camera_idx)
+    # Testowe uruchomienie bezpośrednio z pliku
+    game = RPSGame(cam_index=2)
     game.run()

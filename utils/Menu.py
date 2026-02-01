@@ -54,9 +54,9 @@ class Menu:
         center_y = self.screen.get_height() // 2
 
         self.buttons = [
-            Button((center_x - 200, center_y - 60, 400, 60), "Papier Kamień Nożyce", self.font, self.game_rps),
-            Button((center_x - 200, center_y + 40, 400, 60), "Kinect - sterowanie", self.font, self.game_kinect),
-            Button((center_x - 150, center_y + 140, 300, 50), "Powrót", self.font, self.back_to_menu)
+            Button((center_x - 500, center_y - 60, 400, 60), "Papier Kamień Nożyce", self.font, self.game_rps),
+            Button((center_x - 500, center_y + 40, 400, 60), "Po prostu tańcz®", self.font, self.game_kinect),
+            Button((center_x - 450, center_y + 140, 300, 50), "Powrót", self.font, self.back_to_menu)
         ]
 
     def _create_settings_buttons(self):
@@ -107,7 +107,47 @@ class Menu:
         self._create_game_select_buttons()
             
     def game_kinect(self):
-        print("Start gry: Kinect – sterowanie ciałem")
+        print("Uruchamianie Kinect Game w oknie głównym...")
+        
+        # 1. Zwalniamy tracker menu (bo KinectGame otworzy kamerę sam)
+        self.finger_tracker.release()
+        
+        # Importujemy nową klasę
+        from utils.KinectGame import KinectGame
+        
+        # Zapisujemy obecną rozdzielczość, żeby wiedzieć do czego wrócić
+        old_w, old_h = self.screen.get_width(), self.screen.get_height()
+        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+
+
+        try:
+            pygame.mixer.music.fadeout(1000) # Płynne wyciszenie muzyki z menu (1 sekunda)
+            pygame.mixer.music.load("./music/kinect_music.mp3")
+            pygame.mixer.music.play(-1) # Odtwarzanie w pętli
+        except Exception as e:
+            print(f"Nie udało się załadować muzyki gry: {e}")
+
+        try:
+            # Przekazujemy 'self.screen', aby gra rysowała w tym samym oknie
+            game = KinectGame(self.screen, cam_index=self.finger_tracker.cam_index)
+            game.run()
+        except Exception as e:
+            print(f"Błąd uruchamiania gry Kinect: {e}")
+        
+
+        try:
+            pygame.mixer.music.fadeout(1000) # Wyciszamy muzykę z gry Kinect
+            pygame.mixer.music.load("./music/music.mp3") # Ładujemy standardową muzykę menu
+            pygame.mixer.music.play(-1)
+        except Exception as e:
+             print(f"Błąd przy przywracaniu muzyki menu: {e}")
+
+        # Po wyjściu z pętli gry przywracamy stare wymiary (1280x720)
+        self.screen = pygame.display.set_mode((old_w, old_h))
+
+        # 2. Po zakończeniu gry, przywracamy kamerę dla menu
+        self.finger_tracker.reinit()
+
 
     def settings(self):
         self.state = MENU_SETTINGS
