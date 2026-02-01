@@ -212,5 +212,5 @@ class RPSGame:
 
 if __name__ == "__main__":
     # Testowe uruchomienie bezpośrednio z pliku
-    game = RPSGame(cam_index=2)
+    game = RPSGame(cam_index=0)
     game.run()
