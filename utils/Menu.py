@@ -11,27 +11,33 @@ class Menu:
     def __init__(self, screen, finger_tracker):
         self.screen = screen
         self.finger_tracker = finger_tracker
-        # Używamy domyślnej czcionki systemowej, ale pogrubionej, żeby była bardziej "puchata"
-        try:
-            self.font = pygame.font.SysFont("arial rounded mt bold", 48)
-            # Mniejsza czcionka dla dłuższych nazw
-            self.font_small = pygame.font.SysFont("arial rounded mt bold", 40)
-        except:
-             self.font = pygame.font.SysFont(None, 48, bold=True)
-             self.font_small = pygame.font.SysFont(None, 40, bold=True)
-             
         
-        # Ładowanie tła - zmieniono kolory fallback (awaryjne) na pastelowe
+        # Styl 16-bit: Używamy czcionki technicznej/monospace
+        # "Courier New", "Consolas" lub domyślna systemowa
+        try:
+            self.font = pygame.font.SysFont("courier new", 40, bold=True)
+            self.font_small = pygame.font.SysFont("courier new", 30, bold=True)
+        except:
+             self.font = pygame.font.SysFont(None, 48, bold=False)
+             self.font_small = pygame.font.SysFont(None, 40, bold=False)
+             
+        # Ładowanie tła
         try:
             self.bg_main = pygame.transform.scale(
-                pygame.image.load("./assets/bg_main.png").convert(), 
+                pygame.image.load("./assets/menu.png").convert(), 
                 (screen.get_width(), screen.get_height()))
             self.bg_game_select = self.bg_main
             self.bg_settings = self.bg_main
         except:
-            # Fallback: Pastelowe kremowe tło
+            # Fallback: Retro Grid (Fioletowe tło z siatką)
             self.bg_main = pygame.Surface((screen.get_width(), screen.get_height()))
-            self.bg_main.fill((255, 253, 208)) # Cream color
+            self.bg_main.fill((50, 20, 80)) # Ciemny fiolet
+            # Rysowanie siatki
+            for x in range(0, screen.get_width(), 40):
+                pygame.draw.line(self.bg_main, (70, 40, 100), (x, 0), (x, screen.get_height()), 2)
+            for y in range(0, screen.get_height(), 40):
+                pygame.draw.line(self.bg_main, (70, 40, 100), (0, y), (screen.get_width(), y), 2)
+                
             self.bg_game_select = self.bg_main
             self.bg_settings = self.bg_main
 
@@ -47,21 +53,20 @@ class Menu:
         center_y = self.screen.get_height() // 2
 
         self.buttons = [
-            Button((center_x - 150, center_y - 100, 300, 60), "Wybór gry", self.font, self.select_game),
-            Button((center_x - 150, center_y, 300, 60), "Ustawienia", self.font, self.settings),
-            Button((center_x - 150, center_y + 100, 300, 60), "Wyjście", self.font, self.exit_game)
+            Button((center_x - 150, center_y - 100, 300, 60), "WYBÓR GRY", self.font, self.select_game),
+            Button((center_x - 150, center_y, 300, 60), "USTAWIENIA", self.font, self.settings),
+            Button((center_x - 150, center_y + 100, 300, 60), "WYJŚCIE", self.font, self.exit_game)
         ]
 
     def _create_game_select_buttons(self):
         center_x = self.screen.get_width() // 2
         center_y = self.screen.get_height() // 2
 
-        # Układ dla 3 gier + przycisk powrotu
         self.buttons = [
-            Button((center_x - 200, center_y - 140, 400, 60), "Papier Kamień Nożyce", self.font_small, self.game_rps),
-            Button((center_x - 200, center_y - 60, 400, 60), "Flappy Fist (Skok)", self.font_small, self.game_bird),
-            Button((center_x - 200, center_y + 20, 400, 60), "Po prostu tańcz®", self.font_small, self.game_kinect),
-            Button((center_x - 150, center_y + 120, 300, 50), "Powrót", self.font, self.back_to_menu)
+            Button((center_x - 200, center_y - 140, 400, 60), "PAPIER KAMIEŃ", self.font_small, self.game_rps),
+            Button((center_x - 200, center_y - 60, 400, 60), "FLAPPY FIST", self.font_small, self.game_bird),
+            Button((center_x - 200, center_y + 20, 400, 60), "KINECT DANCE", self.font_small, self.game_kinect),
+            Button((center_x - 150, center_y + 120, 300, 50), "<< POWRÓT", self.font, self.back_to_menu)
         ]
 
     def _create_settings_buttons(self):
@@ -69,9 +74,9 @@ class Menu:
         center_y = self.screen.get_height() // 2
 
         self.buttons = [
-            Button((center_x - 200, center_y - 60, 400, 60), "Głośność +", self.font, self.volume_up),
-            Button((center_x - 200, center_y + 10, 400, 60), "Głośność -", self.font, self.volume_down),
-            Button((center_x - 150, center_y + 140, 300, 50), "Powrót", self.font, self.back_to_menu)
+            Button((center_x - 200, center_y - 60, 400, 60), "GŁOŚNOŚĆ +", self.font, self.volume_up),
+            Button((center_x - 200, center_y + 10, 400, 60), "GŁOŚNOŚĆ -", self.font, self.volume_down),
+            Button((center_x - 150, center_y + 140, 300, 50), "<< POWRÓT", self.font, self.back_to_menu)
         ]
 
     def select_game(self):
@@ -82,76 +87,59 @@ class Menu:
         self.state = MENU_MAIN
         self._create_main_buttons()
 
-    # --- GRA 1: Papier Kamień Nożyce (Ursina - osobny proces) ---
+    # --- OBSŁUGA GIER ---
     def game_rps(self):
-        print("Uruchamianie RPS jako osobny proces...")
+        print("Uruchamianie RPS...")
         self.finger_tracker.release()
         try:
             subprocess.run([sys.executable, "utils/RPSGame.py", str(self.finger_tracker.cam_index)])
         except Exception as e:
-            print(f"Nie udało się uruchomić gry RPS: {e}")
-        
+            print(f"Błąd: {e}")
         self.screen = pygame.display.set_mode((1280, 720))
         self.finger_tracker.reinit()
         self.state = MENU_GAME_SELECT
         self._create_game_select_buttons()
 
-    # --- GRA 2: Flappy Fist (Pygame - osobny proces) ---
     def game_bird(self):
-        print("Uruchamianie Flappy Fist jako osobny proces...")
+        print("Uruchamianie Flappy Fist...")
         self.finger_tracker.release()
         try:
             subprocess.run([sys.executable, "utils/BirdGame.py", str(self.finger_tracker.cam_index)])
         except Exception as e:
-            print(f"Nie udało się uruchomić gry Flappy Fist: {e}")
-        
+            print(f"Błąd: {e}")
         self.screen = pygame.display.set_mode((1280, 720))
         self.finger_tracker.reinit()
-        self.finger_tracker.pinch = False # Reset flagi
+        self.finger_tracker.pinch = False
         self.state = MENU_GAME_SELECT
         self._create_game_select_buttons()
 
-    # --- GRA 3: Kinect / Po prostu tańcz (Zintegrowana) ---
     def game_kinect(self):
-        print("Uruchamianie Kinect Game w oknie głównym...")
-        
-        # 1. Zwalniamy tracker menu
+        print("Uruchamianie Kinect...")
         self.finger_tracker.release()
-        
-        # Importujemy klasę gry (upewnij się, że plik utils/KinectGame.py istnieje)
         try:
             from utils.KinectGame import KinectGame
         except ImportError:
-            print("Błąd: Brak pliku utils/KinectGame.py")
+            print("Brak pliku KinectGame.py")
             self.finger_tracker.reinit()
             return
 
         old_w, old_h = self.screen.get_width(), self.screen.get_height()
-        
-        # Opcjonalnie: fullscreen dla tańca
-        # self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-
-        # Muzyka gry
         try:
             pygame.mixer.music.fadeout(1000)
             pygame.mixer.music.load("./music/kinect_music.mp3")
             pygame.mixer.music.play(-1)
-        except Exception as e:
-            print(f"Brak muzyki do tańca (opcjonalne): {e}")
+        except: pass
 
         try:
             game = KinectGame(self.screen, cam_index=self.finger_tracker.cam_index)
             game.run()
         except Exception as e:
-            print(f"Błąd w grze Kinect: {e}")
+            print(f"Błąd: {e}")
         
-        # Powrót muzyki menu
         try:
-            pygame.mixer.music.fadeout(1000)
             pygame.mixer.music.load("./music/music.mp3")
             pygame.mixer.music.play(-1)
-        except Exception as e:
-             pass
+        except: pass
 
         self.screen = pygame.display.set_mode((old_w, old_h))
         self.finger_tracker.reinit()
@@ -195,53 +183,58 @@ class Menu:
         elif self.state == MENU_SETTINGS:
             self.screen.blit(self.bg_settings, (0, 0))
             
-            vol_width = 200
-            pygame.draw.rect(self.screen, (220, 220, 220), (50, 100, vol_width, 15), border_radius=8) 
-            if self.volume > 0:
-                pygame.draw.rect(self.screen, (255, 105, 180), (50, 100, int(vol_width * self.volume), 15), border_radius=8)
+            # Pasek głośności w stylu retro (blokowy)
+            vol_width = 300
+            pygame.draw.rect(self.screen, (50, 50, 50), (50, 100, vol_width, 30)) # Tło
+            
+            # Wypełnienie blokowe (zielone segmenty)
+            blocks = int(self.volume * 10)
+            for i in range(blocks):
+                pygame.draw.rect(self.screen, (0, 255, 0), (50 + i*30 + 2, 102, 26, 26))
+
     
         # 2. Rysowanie przycisków
         for button in self.buttons:
             button.draw(self.screen)
             
-        # Tekst w ustawieniach
+        # 3. Tekst w ustawieniach (NAPRAWIONE)
         if self.state == MENU_SETTINGS:
-            if self.buttons:
-                 self.buttons[0].draw_text_with_outline(self.screen, f"Głośność: {int(self.volume*100)}%", self.font, (255,255,255), (255, 105, 180), pygame.Rect(50, 40, 200, 50))
+             # Rysujemy tekst bezpośrednio, bez użycia metody Button
+             label_text = f"GŁOŚNOŚĆ: {int(self.volume*100)}%"
+             
+             # Cień tekstu (czarny)
+             txt_shadow = self.font.render(label_text, False, (0, 0, 0))
+             self.screen.blit(txt_shadow, (52, 52))
+             
+             # Właściwy tekst (biały)
+             txt_main = self.font.render(label_text, False, (255, 255, 255))
+             self.screen.blit(txt_main, (50, 50))
 
-        # 3. Rysowanie KURSORA
-        cursor_pos = finger_pos
-        is_snapped = False
-        
+        # 4. Rysowanie KURSORA - PIKSELOWA STRZAŁKA
         if finger_pos:
-            for button in self.buttons:
-                if button.original_rect.collidepoint(finger_pos):
-                    is_snapped = True
-                    break
-        
-        if cursor_pos:
-            cx, cy = cursor_pos
+            x, y = finger_pos
             
-            color_normal = (135, 206, 250) 
-            color_snapped = (152, 251, 152)
-            color_pinch = (255, 182, 193)  
+            # Kolory kursora
+            c_fill = (255, 255, 255) # Biały
+            c_outline = (0, 0, 0)    # Czarny
             
             if pinch:
-                color = color_pinch
-                radius = 12 
-                border_width = 3
-            elif is_snapped:
-                color = color_snapped
-                radius = 18 
-                border_width = 5
-            else:
-                color = color_normal
-                radius = 15 
-                border_width = 4
-
-            s = pygame.Surface((radius*2+10, radius*2+10), pygame.SRCALPHA)
-            pygame.draw.circle(s, (*color, 100), (radius+5, radius+5), radius+4)
-            self.screen.blit(s, (cx - (radius+5), cy - (radius+5)))
-
-            pygame.draw.circle(self.screen, (255, 255, 255), (cx, cy), radius, border_width)
-            pygame.draw.circle(self.screen, color, (cx, cy), radius - border_width)
+                c_fill = (255, 50, 50) # Czerwony jak kliknie
+            
+            # Definicja kształtu strzałki
+            cursor_points = [
+                (x, y),          # Czubek
+                (x, y + 30),     # Lewy dół
+                (x + 10, y + 22),# Wcięcie
+                (x + 22, y + 34),# Ogon dół
+                (x + 28, y + 28),# Ogon góra
+                (x + 16, y + 16),# Wcięcie góra
+                (x + 30, y + 10) # Prawy bok
+            ]
+            
+            # Obrys
+            pygame.draw.polygon(self.screen, c_outline, [(p[0]+2, p[1]+2) for p in cursor_points], 0) # Cień rzucany
+            pygame.draw.polygon(self.screen, c_outline, [(p[0]-2, p[1]) for p in cursor_points], 6) # Obrys gruby
+            
+            # Wypełnienie
+            pygame.draw.polygon(self.screen, c_fill, cursor_points, 0)

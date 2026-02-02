@@ -10,7 +10,7 @@ pygame.init()
 pygame.mixer.init()
 
 try:
-    pygame.mixer.music.load("./music/music.mp3")
+    pygame.mixer.music.load("./music/music2.wav")
     pygame.mixer.music.play(-1)
 except:
     print("Brak pliku muzyki")
@@ -20,10 +20,9 @@ pygame.display.set_caption("Menu Sterowane Gestami")
 clock = pygame.time.Clock()
 running = True
 
-# Inicjalizacja trackera (upewnij się co do indeksu kamery: 0, 1 lub 2)
+# UWAGA ODPOWIEDNI INDEX KAMERY WYBIERZ
 finger = FingerTracker(cam_index=2) 
 
-# PRZEKAZUJEMY finger DO MENU
 menu = Menu(screen, finger)
 
 while running:
@@ -33,15 +32,12 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    # Aktualizacja trackera
     finger.update(screen.get_width(), screen.get_height())
     finger_pos = finger.get_pos()
     pinch = finger.is_pinch()
 
     # Aktualizacja menu
     menu.update(finger_pos, pinch)
-    
-    # Rysowanie 
     menu.draw(finger_pos, pinch) 
 
     pygame.display.flip()

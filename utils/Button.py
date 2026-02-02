@@ -12,26 +12,18 @@ class Button:
         self.hovered = False
         self.was_pressed = False
         
-        # Animacja (sprężyste powiększanie)
-        self.current_scale = 1.0
-        self.target_scale = 1.0
+        # Styl 16-bitowy (Retro Kolory)
+        self.color_face = (192, 192, 192)      # Szary (baza)
+        self.color_highlight = (255, 255, 255) # Biały (światło)
+        self.color_shadow = (128, 128, 128)    # Ciemnoszary (cień)
+        self.color_black = (0, 0, 0)           # Czarny (obrys)
         
-        # --- UROCZA PALETA BARW ---
-        # Pastelowy róż jako baza
-        self.color_normal = (255, 182, 193)   # LightPink
-        # Pastelowy błękit po najechaniu
-        self.color_hover = (173, 216, 230)    # LightBlue
-        # Ciemniejszy róż na obrys
-        self.border_color = (255, 105, 180)   # HotPink
-        # Kolor tekstu (biały) i jego obrysu (ciemny róż)
-        self.text_color = (255, 255, 255)
-        self.text_outline_color = (255, 20, 147) # DeepPink
+        self.color_face_hover = (220, 220, 255) # Lekki błękit po najechaniu
+        self.text_color = (0, 0, 0)
 
     def update(self, finger_pos, pinch):
-        # Logika bez zmian - działa na oryginalnym prostokącie
         if finger_pos and self.original_rect.collidepoint(finger_pos):
             self.hovered = True
-            self.target_scale = 1.1 # Lekkie powiększenie
             
             if pinch and not self.was_pressed:
                 self.was_pressed = True
@@ -41,58 +33,50 @@ class Button:
                 self.was_pressed = False
         else:
             self.hovered = False
-            self.target_scale = 1.0
             if not pinch:
                 self.was_pressed = False
 
-        # Płynna animacja (Lerp)
-        self.current_scale += (self.target_scale - self.current_scale) * 0.2
-
-    # Funkcja pomocnicza do rysowania tekstu z obrysem (efekt naklejki)
-    def draw_text_with_outline(self, surface, text, font, color, outline_color, pos_rect):
-        bg_txt = font.render(text, True, outline_color)
-        fg_txt = font.render(text, True, color)
-        
-        # Rysujemy obrys 4 razy przesunięty
-        offsets = [(-2, -2), (2, -2), (-2, 2), (2, 2)]
-        for dx, dy in offsets:
-             outline_rect = bg_txt.get_rect(center=(pos_rect.centerx + dx, pos_rect.centery + dy))
-             surface.blit(bg_txt, outline_rect)
-             
-        # Rysujemy główny tekst na wierzchu
-        txt_rect = fg_txt.get_rect(center=pos_rect.center)
-        surface.blit(fg_txt, txt_rect)
-
     def draw(self, screen):
-        # Obliczamy wizualny rozmiar
-        width = int(self.original_rect.width * self.current_scale)
-        height = int(self.original_rect.height * self.current_scale)
-        cx, cy = self.original_rect.center
+        # Ustalanie pozycji (jeśli kliknięty, przesuń w dół-prawo)
+        offset_x = 0
+        offset_y = 0
         
-        # Wirtualny prostokąt do rysowania
-        draw_rect = pygame.Rect(0, 0, width, height)
-        draw_rect.center = (cx, cy)
+        # Efekt wciśnięcia (gdy uszczypnięcie na przycisku)
+        is_pressed = self.hovered and self.was_pressed
+        if is_pressed:
+            offset_x = 4
+            offset_y = 4
 
-        # Zaokrąglenie (połowa wysokości daje kształt pastylki)
-        radius = height // 2
-
-        # --- Rysowanie Cienia (miękki, różowy cień pod spodem) ---
-        shadow_rect = draw_rect.copy()
-        shadow_rect.y += 6 # Przesunięcie w dół
-        # Rysujemy cień (ciemniejszy róż, lekko przezroczysty)
-        shadow_surf = pygame.Surface((width, height + 10), pygame.SRCALPHA)
-        pygame.draw.rect(shadow_surf, (219, 112, 147, 100), (0,0,width,height), border_radius=radius)
-        screen.blit(shadow_surf, (draw_rect.x, draw_rect.y + 5))
-
-        # --- Rysowanie Przycisku ---
-        bg_color = self.color_hover if self.hovered else self.color_normal
+        # Główny prostokąt (przesunięty)
+        current_rect = self.original_rect.move(offset_x, offset_y)
         
-        # 1. Grubszy obrys (jako tło)
-        pygame.draw.rect(screen, self.border_color, draw_rect, border_radius=radius)
-        
-        # 2. Wypełnienie środka (trochę mniejsze)
-        inner_rect = draw_rect.inflate(-6, -6)
-        pygame.draw.rect(screen, bg_color, inner_rect, border_radius=radius-3)
+        # 1. Cień "rzucany" na tło (czarny prostokąt pod spodem)
+        # Rysujemy go tylko, jeśli przycisk NIE jest wciśnięty
+        if not is_pressed:
+            shadow_rect = self.original_rect.move(6, 6)
+            pygame.draw.rect(screen, self.color_black, shadow_rect)
 
-        # --- Rysowanie Tekstu (z obrysem) ---
-        self.draw_text_with_outline(screen, self.text, self.font, self.text_color, self.text_outline_color, draw_rect)
+        # 2. Wypełnienie przycisku
+        bg_color = self.color_face_hover if self.hovered else self.color_face
+        pygame.draw.rect(screen, bg_color, current_rect)
+
+        # 3. Obrys (Border) - 1px czarny
+        pygame.draw.rect(screen, self.color_black, current_rect, 2)
+
+        # 4. Efekt 3D (Bevel) - chyba że wciśnięty (wtedy płaski lub odwrócony)
+        if not is_pressed:
+            # Jasne krawędzie (Góra i Lewa)
+            pygame.draw.line(screen, self.color_highlight, (current_rect.left + 2, current_rect.top + 2), (current_rect.right - 3, current_rect.top + 2), 3)
+            pygame.draw.line(screen, self.color_highlight, (current_rect.left + 2, current_rect.top + 2), (current_rect.left + 2, current_rect.bottom - 3), 3)
+            
+            # Ciemne krawędzie (Dół i Prawa)
+            pygame.draw.line(screen, self.color_shadow, (current_rect.left + 2, current_rect.bottom - 2), (current_rect.right - 2, current_rect.bottom - 2), 3)
+            pygame.draw.line(screen, self.color_shadow, (current_rect.right - 2, current_rect.top + 2), (current_rect.right - 2, current_rect.bottom - 2), 3)
+
+        # 5. Tekst (Bez antyaliasingu dla efektu pikseli)
+        # Render(text, antialias, color) -> antialias=False
+        text_surf = self.font.render(self.text, False, self.text_color)
+        text_rect = text_surf.get_rect(center=current_rect.center)
+        
+        # Jeśli wciśnięty, tekst też się przesuwa
+        screen.blit(text_surf, text_rect)
